@@ -15,6 +15,17 @@ repositories {
 
 val javafxVersion = "21"
 
+// 创建独立的 JavaFX 配置，避免被 Loom 处理
+val javafx by configurations.creating {
+    isTransitive = false
+}
+
+// 让 compileClasspath 和 runtimeClasspath 包含 JavaFX
+configurations {
+    compileClasspath.get().extendsFrom(javafx)
+    runtimeClasspath.get().extendsFrom(javafx)
+}
+
 dependencies {
     minecraft("com.mojang:minecraft:${providers.gradleProperty("minecraft_version").get()}")
     mappings("net.fabricmc:yarn:${providers.gradleProperty("yarn_mappings").get()}:v2")
@@ -23,28 +34,29 @@ dependencies {
     modImplementation("net.fabricmc.fabric-api:fabric-api:${providers.gradleProperty("fabric_api_version").get()}")
     modImplementation("net.fabricmc:fabric-language-kotlin:${providers.gradleProperty("fabric_kotlin_version").get()}")
 
-    // JavaFX 基础模块（跨平台 API）
-    include("org.openjfx:javafx-media:${javafxVersion}")
-    include("org.openjfx:javafx-controls:${javafxVersion}")
-    include("org.openjfx:javafx-graphics:${javafxVersion}")
+    // JavaFX 依赖添加到独立配置中
+    javafx("org.openjfx:javafx-media:${javafxVersion}")
+    javafx("org.openjfx:javafx-controls:${javafxVersion}")
+    javafx("org.openjfx:javafx-graphics:${javafxVersion}")
+    javafx("org.openjfx:javafx-base:${javafxVersion}")
 
     // Windows 64位
-    include("org.openjfx:javafx-media:${javafxVersion}:win")
-    include("org.openjfx:javafx-controls:${javafxVersion}:win")
-    include("org.openjfx:javafx-graphics:${javafxVersion}:win")
-    include("org.openjfx:javafx-base:${javafxVersion}:win")
+    javafx("org.openjfx:javafx-media:${javafxVersion}:win")
+    javafx("org.openjfx:javafx-controls:${javafxVersion}:win")
+    javafx("org.openjfx:javafx-graphics:${javafxVersion}:win")
+    javafx("org.openjfx:javafx-base:${javafxVersion}:win")
 
     // Linux 64位
-    include("org.openjfx:javafx-media:${javafxVersion}:linux")
-    include("org.openjfx:javafx-controls:${javafxVersion}:linux")
-    include("org.openjfx:javafx-graphics:${javafxVersion}:linux")
-    include("org.openjfx:javafx-base:${javafxVersion}:linux")
+    javafx("org.openjfx:javafx-media:${javafxVersion}:linux")
+    javafx("org.openjfx:javafx-controls:${javafxVersion}:linux")
+    javafx("org.openjfx:javafx-graphics:${javafxVersion}:linux")
+    javafx("org.openjfx:javafx-base:${javafxVersion}:linux")
 
     // Linux aarch64
-    include("org.openjfx:javafx-media:${javafxVersion}:linux-aarch64")
-    include("org.openjfx:javafx-controls:${javafxVersion}:linux-aarch64")
-    include("org.openjfx:javafx-graphics:${javafxVersion}:linux-aarch64")
-    include("org.openjfx:javafx-base:${javafxVersion}:linux-aarch64")
+    javafx("org.openjfx:javafx-media:${javafxVersion}:linux-aarch64")
+    javafx("org.openjfx:javafx-controls:${javafxVersion}:linux-aarch64")
+    javafx("org.openjfx:javafx-graphics:${javafxVersion}:linux-aarch64")
+    javafx("org.openjfx:javafx-base:${javafxVersion}:linux-aarch64")
 }
 
 tasks.processResources {
