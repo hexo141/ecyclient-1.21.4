@@ -14,7 +14,7 @@ object GameLogInterceptor {
             override fun append(event: LogEvent) {
                 val message = event.message.formattedMessage
                 if (message.isNotEmpty()) {
-                    SplashVideoPlayer.updateLog(message.take(80))
+                    SplashVideoPlayer.updateLog(message.take(90))
                 }
             }
         }
