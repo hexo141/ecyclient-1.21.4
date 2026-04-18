@@ -1,0 +1,41 @@
+{
+	"schemaVersion": 1,
+	"id": "ecyclient",
+	"version": "${version}",
+	"name": "ECYclient",
+	"description": "This is an example description! Tell everyone what your mod is about!",
+	"authors": [
+		"Me!"
+	],
+	"contact": {
+		"homepage": "https://fabricmc.net/",
+		"sources": "https://github.com/FabricMC/fabric-example-mod"
+	},
+	"license": "CC0-1.0",
+	"icon": "assets/ecyclient/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"preLaunch": [
+			{
+				"value": "com.example.ECYclient",
+				"adapter": "kotlin"
+			}
+		],
+		"main": [
+			{
+				"value": "com.example.ECYclient",
+				"adapter": "kotlin"
+			}
+		]
+	},
+	"mixins": [
+		"ecyclient.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.19.2",
+		"minecraft": "~1.21.4",
+		"java": ">=21",
+		"fabric-api": "*",
+		"fabric-language-kotlin": "*"
+	}
+}
