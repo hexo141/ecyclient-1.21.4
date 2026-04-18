@@ -24,27 +24,27 @@ dependencies {
     modImplementation("net.fabricmc:fabric-language-kotlin:${providers.gradleProperty("fabric_kotlin_version").get()}")
 
     // JavaFX 基础模块（跨平台 API）
-    implementation("org.openjfx:javafx-media:${javafxVersion}")
-    implementation("org.openjfx:javafx-controls:${javafxVersion}")
-    implementation("org.openjfx:javafx-graphics:${javafxVersion}")
+    include("org.openjfx:javafx-media:${javafxVersion}")
+    include("org.openjfx:javafx-controls:${javafxVersion}")
+    include("org.openjfx:javafx-graphics:${javafxVersion}")
 
     // Windows 64位
-    implementation("org.openjfx:javafx-media:${javafxVersion}:win")
-    implementation("org.openjfx:javafx-controls:${javafxVersion}:win")
-    implementation("org.openjfx:javafx-graphics:${javafxVersion}:win")
-    implementation("org.openjfx:javafx-base:${javafxVersion}:win")
+    include("org.openjfx:javafx-media:${javafxVersion}:win")
+    include("org.openjfx:javafx-controls:${javafxVersion}:win")
+    include("org.openjfx:javafx-graphics:${javafxVersion}:win")
+    include("org.openjfx:javafx-base:${javafxVersion}:win")
 
     // Linux 64位
-    implementation("org.openjfx:javafx-media:${javafxVersion}:linux")
-    implementation("org.openjfx:javafx-controls:${javafxVersion}:linux")
-    implementation("org.openjfx:javafx-graphics:${javafxVersion}:linux")
-    implementation("org.openjfx:javafx-base:${javafxVersion}:linux")
+    include("org.openjfx:javafx-media:${javafxVersion}:linux")
+    include("org.openjfx:javafx-controls:${javafxVersion}:linux")
+    include("org.openjfx:javafx-graphics:${javafxVersion}:linux")
+    include("org.openjfx:javafx-base:${javafxVersion}:linux")
 
     // Linux aarch64
-    implementation("org.openjfx:javafx-media:${javafxVersion}:linux-aarch64")
-    implementation("org.openjfx:javafx-controls:${javafxVersion}:linux-aarch64")
-    implementation("org.openjfx:javafx-graphics:${javafxVersion}:linux-aarch64")
-    implementation("org.openjfx:javafx-base:${javafxVersion}:linux-aarch64")
+    include("org.openjfx:javafx-media:${javafxVersion}:linux-aarch64")
+    include("org.openjfx:javafx-controls:${javafxVersion}:linux-aarch64")
+    include("org.openjfx:javafx-graphics:${javafxVersion}:linux-aarch64")
+    include("org.openjfx:javafx-base:${javafxVersion}:linux-aarch64")
 }
 
 tasks.processResources {
