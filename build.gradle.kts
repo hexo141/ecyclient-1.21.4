@@ -28,6 +28,10 @@ dependencies {
 	// Fabric API. This is technically optional, but you probably want it anyway.
 	modImplementation("net.fabricmc.fabric-api:fabric-api:${providers.gradleProperty("fabric_api_version").get()}")
 	modImplementation("net.fabricmc:fabric-language-kotlin:${providers.gradleProperty("fabric_kotlin_version").get()}")
+	implementation("org.openjfx:javafx-controls:21")
+	implementation("org.openjfx:javafx-media:21")
+	implementation("org.openjfx:javafx-graphics:21")
+	implementation("org.openjfx:javafx-base:21")
 }
 
 tasks.processResources {
