@@ -29,22 +29,22 @@ dependencies {
     implementation("org.openjfx:javafx-graphics:${javafxVersion}")
 
     // Windows 64位
-    runtimeOnly("org.openjfx:javafx-media:${javafxVersion}:win")
-    runtimeOnly("org.openjfx:javafx-controls:${javafxVersion}:win")
-    runtimeOnly("org.openjfx:javafx-graphics:${javafxVersion}:win")
-    runtimeOnly("org.openjfx:javafx-base:${javafxVersion}:win")
+    implementation("org.openjfx:javafx-media:${javafxVersion}:win")
+    implementation("org.openjfx:javafx-controls:${javafxVersion}:win")
+    implementation("org.openjfx:javafx-graphics:${javafxVersion}:win")
+    implementation("org.openjfx:javafx-base:${javafxVersion}:win")
 
     // Linux 64位
-    runtimeOnly("org.openjfx:javafx-media:${javafxVersion}:linux")
-    runtimeOnly("org.openjfx:javafx-controls:${javafxVersion}:linux")
-    runtimeOnly("org.openjfx:javafx-graphics:${javafxVersion}:linux")
-    runtimeOnly("org.openjfx:javafx-base:${javafxVersion}:linux")
+    implementation("org.openjfx:javafx-media:${javafxVersion}:linux")
+    implementation("org.openjfx:javafx-controls:${javafxVersion}:linux")
+    implementation("org.openjfx:javafx-graphics:${javafxVersion}:linux")
+    implementation("org.openjfx:javafx-base:${javafxVersion}:linux")
 
     // Linux aarch64
-    runtimeOnly("org.openjfx:javafx-media:${javafxVersion}:linux-aarch64")
-    runtimeOnly("org.openjfx:javafx-controls:${javafxVersion}:linux-aarch64")
-    runtimeOnly("org.openjfx:javafx-graphics:${javafxVersion}:linux-aarch64")
-    runtimeOnly("org.openjfx:javafx-base:${javafxVersion}:linux-aarch64")
+    implementation("org.openjfx:javafx-media:${javafxVersion}:linux-aarch64")
+    implementation("org.openjfx:javafx-controls:${javafxVersion}:linux-aarch64")
+    implementation("org.openjfx:javafx-graphics:${javafxVersion}:linux-aarch64")
+    implementation("org.openjfx:javafx-base:${javafxVersion}:linux-aarch64")
 }
 
 tasks.processResources {
