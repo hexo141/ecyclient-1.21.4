@@ -5,7 +5,9 @@
 	"mixins": [],
 	"client": [
 		"TitleScreenMixin",
-		"MinecraftClientMixin"
+		"MinecraftClientMixin",
+		"ModuleLifecycleMixin",
+		"ModuleHudKeyMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

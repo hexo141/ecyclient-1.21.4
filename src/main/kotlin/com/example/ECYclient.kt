@@ -1,5 +1,6 @@
 package com.example
 
+import com.example.module.ModuleManager
 import com.example.util.VideoStopHelper
 import net.fabricmc.api.ModInitializer
 import net.fabricmc.loader.api.entrypoint.PreLaunchEntrypoint
@@ -10,6 +11,7 @@ object ECYclient : ModInitializer, PreLaunchEntrypoint {
 
 	override fun onInitialize() {
 		logger.info("Hello ECYclient!")
+		ModuleManager.init()
 	}
 	
 	override fun onPreLaunch() {
