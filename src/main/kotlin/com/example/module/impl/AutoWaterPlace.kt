@@ -2,8 +2,12 @@ package com.example.module.impl
 
 
 import com.example.module.GameModule
+import com.example.module.ModuleCategory
 import com.example.module.ModuleMetadata
 import com.example.module.ModuleState
+import com.example.module.config.ConfigPersistence
+import com.example.module.impl.config.autowaterplace.AutoWaterPlaceConfig
+import com.google.gson.JsonObject
 import net.minecraft.block.Blocks
 import net.minecraft.client.MinecraftClient
 import net.minecraft.client.network.ClientPlayerEntity
@@ -22,7 +26,8 @@ object AutoWaterPlace : GameModule {
         name = "Auto Water Bucket MLG",
         version = "1.2.0",
         description = "Automatically places a water bucket to prevent fall damage",
-        enabled = true
+        enabled = true,
+        category = ModuleCategory.ASSISTANT
     )
 
     override var state: ModuleState = ModuleState.DISABLED
@@ -33,19 +38,8 @@ object AutoWaterPlace : GameModule {
     private var wasInAir = false
     private var airTimeTicks = 0
 
-    // Configuration options
-    var minFallDistance = 3f
-        private set
-    var placeDistance = 2.0
-        private set
-    var maxGroundDistance = 10.0
-        private set
-    var cooldownTime = 20
-        private set
-    var requireWaterBucket = true
-        private set
-
     override fun onEnable() {
+        loadSavedConfig()
         resetState()
         wasInAir = false
         airTimeTicks = 0
@@ -53,6 +47,24 @@ object AutoWaterPlace : GameModule {
 
     override fun onDisable() {
         resetState()
+    }
+    
+    private fun loadSavedConfig() {
+        val savedConfig = ConfigPersistence.loadConfig("auto_water_place") ?: return
+        
+        val minFallDistance = savedConfig.get("minFallDistance")?.asFloat ?: AutoWaterPlaceConfig.minFallDistance
+        val placeDistance = savedConfig.get("placeDistance")?.asDouble ?: AutoWaterPlaceConfig.placeDistance
+        val maxGroundDistance = savedConfig.get("maxGroundDistance")?.asDouble ?: AutoWaterPlaceConfig.maxGroundDistance
+        val cooldownTime = savedConfig.get("cooldownTime")?.asInt ?: AutoWaterPlaceConfig.cooldownTime
+        val requireWaterBucket = savedConfig.get("requireWaterBucket")?.asBoolean ?: AutoWaterPlaceConfig.requireWaterBucket
+        
+        configure(
+            minFallDistance = minFallDistance,
+            placeDistance = placeDistance,
+            maxGroundDistance = maxGroundDistance,
+            cooldownTime = cooldownTime,
+            requireWaterBucket = requireWaterBucket
+        )
     }
 
     override fun onTick() {
@@ -78,7 +90,7 @@ object AutoWaterPlace : GameModule {
 
     private fun checkAndPlaceWater(player: ClientPlayerEntity) {
         if (waterPlaced) return
-        if (requireWaterBucket && !hasWaterBucket(player)) return
+        if (AutoWaterPlaceConfig.requireWaterBucket && !hasWaterBucket(player)) return
         
         // 在地面或水中不放水
         if (player.isOnGround || player.isTouchingWater || player.isInLava) return
@@ -102,13 +114,11 @@ object AutoWaterPlace : GameModule {
         
         // 计算到地面的距离
         val groundDistance = getDistanceToGround(player)
-        if (groundDistance.isInfinite() || groundDistance > maxGroundDistance) return
+        if (groundDistance.isInfinite() || groundDistance > AutoWaterPlaceConfig.maxGroundDistance) return
         
-        // 触发条件：离地距离足够近
-        val isCloseToGround = groundDistance <= placeDistance
+        val isCloseToGround = groundDistance <= AutoWaterPlaceConfig.placeDistance
         
-        // 坠落距离足够 或者 在空中超过一定时间
-        val hasFallenEnough = player.fallDistance >= minFallDistance || airTimeTicks > 10
+        val hasFallenEnough = player.fallDistance >= AutoWaterPlaceConfig.minFallDistance || airTimeTicks > 10
         
         if (isCloseToGround && hasFallenEnough) {
             placeWater(player)
@@ -117,34 +127,34 @@ object AutoWaterPlace : GameModule {
 
     /**
      * 计算玩家脚部到地面的距离
+     * 只检测玩家碰撞箱正下方的方块，避免擦肩而过的方块误触发
      */
     private fun getDistanceToGround(player: ClientPlayerEntity): Double {
         val world = player.clientWorld
-        val playerX = player.pos.x
         val playerY = player.pos.y
-        val playerZ = player.pos.z
         
-        // 从玩家脚下开始向下扫描
-        for (offset in 0..maxGroundDistance.toInt() + 5) {
-            val checkY = (playerY - offset).toInt()
+        // 获取玩家碰撞箱的XZ范围（玩家碰撞箱宽度为0.6）
+        val boundingBox = player.boundingBox
+        val minX = kotlin.math.floor(boundingBox.minX).toInt()
+        val maxX = kotlin.math.floor(boundingBox.maxX - 0.001).toInt()
+        val minZ = kotlin.math.floor(boundingBox.minZ).toInt()
+        val maxZ = kotlin.math.floor(boundingBox.maxZ - 0.001).toInt()
+        
+        for (offset in 0..AutoWaterPlaceConfig.maxGroundDistance.toInt() + 5) {
+            val checkY = kotlin.math.floor(playerY - offset).toInt()
             if (checkY < 0) break
             
-            // 检查多个水平位置，确保准确性
-            val checkPositions = listOf(
-                BlockPos(playerX.toInt(), checkY, playerZ.toInt()),
-                BlockPos((playerX + 0.3).toInt(), checkY, playerZ.toInt()),
-                BlockPos((playerX - 0.3).toInt(), checkY, playerZ.toInt()),
-                BlockPos(playerX.toInt(), checkY, (playerZ + 0.3).toInt()),
-                BlockPos(playerX.toInt(), checkY, (playerZ - 0.3).toInt())
-            )
-            
-            for (pos in checkPositions) {
-                val blockState = world.getBlockState(pos)
-                if (!blockState.isAir) {
-                    val blockTopY = pos.y + 1.0
-                    val distance = playerY - blockTopY
-                    if (distance >= 0 && distance < maxGroundDistance) {
-                        return distance
+            // 只检查玩家碰撞箱正下方的方块
+            for (x in minX..maxX) {
+                for (z in minZ..maxZ) {
+                    val pos = BlockPos(x, checkY, z)
+                    val blockState = world.getBlockState(pos)
+                    if (!blockState.isAir) {
+                        val blockTopY = pos.y + 1.0
+                        val distance = playerY - blockTopY
+                        if (distance >= 0) {
+                            return distance
+                        }
                     }
                 }
             }
@@ -175,23 +185,25 @@ object AutoWaterPlace : GameModule {
 
     private fun findGroundBlockBelow(player: ClientPlayerEntity): BlockPos? {
         val world = player.clientWorld
-        val startY = player.pos.y.toInt()
-        val limit = startY - maxGroundDistance.toInt()
+        val startY = kotlin.math.floor(player.pos.y).toInt()
+        val limit = startY - AutoWaterPlaceConfig.maxGroundDistance.toInt()
+        
+        // 获取玩家碰撞箱的XZ范围
+        val boundingBox = player.boundingBox
+        val minX = kotlin.math.floor(boundingBox.minX).toInt()
+        val maxX = kotlin.math.floor(boundingBox.maxX - 0.001).toInt()
+        val minZ = kotlin.math.floor(boundingBox.minZ).toInt()
+        val maxZ = kotlin.math.floor(boundingBox.maxZ - 0.001).toInt()
 
         for (y in startY downTo limit.coerceAtLeast(0)) {
-            // 检查多个水平位置
-            val positions = listOf(
-                BlockPos(player.pos.x.toInt(), y, player.pos.z.toInt()),
-                BlockPos((player.pos.x + 0.5).toInt(), y, player.pos.z.toInt()),
-                BlockPos((player.pos.x - 0.5).toInt(), y, player.pos.z.toInt()),
-                BlockPos(player.pos.x.toInt(), y, (player.pos.z + 0.5).toInt()),
-                BlockPos(player.pos.x.toInt(), y, (player.pos.z - 0.5).toInt())
-            )
-            
-            for (pos in positions) {
-                val blockState = world.getBlockState(pos)
-                if (!blockState.isAir) {
-                    return pos
+            // 只检查玩家碰撞箱正下方的方块
+            for (x in minX..maxX) {
+                for (z in minZ..maxZ) {
+                    val pos = BlockPos(x, y, z)
+                    val blockState = world.getBlockState(pos)
+                    if (!blockState.isAir) {
+                        return pos
+                    }
                 }
             }
         }
@@ -223,7 +235,7 @@ object AutoWaterPlace : GameModule {
         player.inventory.selectedSlot = originalSlot
         
         waterPlaced = true
-        cooldownTicks = cooldownTime
+        cooldownTicks = AutoWaterPlaceConfig.cooldownTime
         
         // 输出成功消息
         println("Placed water at $groundBlockPos")
@@ -248,18 +260,12 @@ object AutoWaterPlace : GameModule {
         cooldownTime: Int = 20,
         requireWaterBucket: Boolean = true
     ) {
-        this.minFallDistance = minFallDistance
-        this.placeDistance = placeDistance
-        this.maxGroundDistance = maxGroundDistance
-        this.cooldownTime = cooldownTime
-        this.requireWaterBucket = requireWaterBucket
+        AutoWaterPlaceConfig.minFallDistance = minFallDistance
+        AutoWaterPlaceConfig.placeDistance = placeDistance
+        AutoWaterPlaceConfig.maxGroundDistance = maxGroundDistance
+        AutoWaterPlaceConfig.cooldownTime = cooldownTime
+        AutoWaterPlaceConfig.requireWaterBucket = requireWaterBucket
     }
 
-    fun getConfig(): Map<String, Any> = mapOf(
-        "minFallDistance" to minFallDistance,
-        "placeDistance" to placeDistance,
-        "maxGroundDistance" to maxGroundDistance,
-        "cooldownTime" to cooldownTime,
-        "requireWaterBucket" to requireWaterBucket
-    )
+    fun getConfig(): Map<String, Any> = AutoWaterPlaceConfig.toMap()
 }

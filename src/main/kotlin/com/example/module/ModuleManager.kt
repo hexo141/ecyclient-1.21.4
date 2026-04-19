@@ -37,7 +37,6 @@ object ModuleManager {
     
     private fun registerBuiltInModules() {
         try {
-            // 直接使用Kotlin object的类名访问实例
             val autoWaterPlaceClass = Class.forName("com.example.module.impl.AutoWaterPlace")
             val instanceField = autoWaterPlaceClass.getDeclaredField("INSTANCE")
             instanceField.isAccessible = true
@@ -46,6 +45,42 @@ object ModuleManager {
             logger.info("Successfully registered AutoWaterPlace module")
         } catch (e: Exception) {
             logger.warn("Failed to register AutoWaterPlace module: ${e.message}")
+            e.printStackTrace()
+        }
+        
+        try {
+            val autoSprintClass = Class.forName("com.example.module.impl.AutoSprint")
+            val instanceField = autoSprintClass.getDeclaredField("INSTANCE")
+            instanceField.isAccessible = true
+            val module = instanceField.get(null) as GameModule
+            registerModule(module)
+            logger.info("Successfully registered AutoSprint module")
+        } catch (e: Exception) {
+            logger.warn("Failed to register AutoSprint module: ${e.message}")
+            e.printStackTrace()
+        }
+        
+        try {
+            val moduleListDisplayClass = Class.forName("com.example.module.impl.ModuleListDisplay")
+            val instanceField = moduleListDisplayClass.getDeclaredField("INSTANCE")
+            instanceField.isAccessible = true
+            val module = instanceField.get(null) as GameModule
+            registerModule(module)
+            logger.info("Successfully registered ModuleListDisplay module")
+        } catch (e: Exception) {
+            logger.warn("Failed to register ModuleListDisplay module: ${e.message}")
+            e.printStackTrace()
+        }
+        
+        try {
+            val ecyPlayerTagClass = Class.forName("com.example.module.impl.EcyPlayerTag")
+            val instanceField = ecyPlayerTagClass.getDeclaredField("INSTANCE")
+            instanceField.isAccessible = true
+            val module = instanceField.get(null) as GameModule
+            registerModule(module)
+            logger.info("Successfully registered EcyPlayerTag module")
+        } catch (e: Exception) {
+            logger.warn("Failed to register EcyPlayerTag module: ${e.message}")
             e.printStackTrace()
         }
     }
@@ -149,7 +184,10 @@ object ModuleManager {
                     dependencies = json.getAsJsonArray("dependencies")?.let { array ->
                         array.map { it.asString }
                     } ?: emptyList(),
-                    enabled = json.get("enabled")?.asBoolean ?: true
+                    enabled = json.get("enabled")?.asBoolean ?: true,
+                    category = json.get("category")?.asString?.let { 
+                        try { ModuleCategory.valueOf(it) } catch (e: Exception) { ModuleCategory.OTHER }
+                    } ?: ModuleCategory.OTHER
                 )
             }
         } catch (e: Exception) {

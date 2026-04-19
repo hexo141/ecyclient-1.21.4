@@ -7,7 +7,9 @@
 		"TitleScreenMixin",
 		"MinecraftClientMixin",
 		"ModuleLifecycleMixin",
-		"ModuleHudKeyMixin"
+		"ModuleHudKeyMixin",
+		"InGameHudMixin",
+		"PlayerListEntryMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

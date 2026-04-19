@@ -15,11 +15,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable
 import net.minecraft.client.gui.screen.option.OptionsScreen
 import net.minecraft.client.gui.screen.multiplayer.MultiplayerScreen
 import net.minecraft.client.gui.screen.world.SelectWorldScreen
-import net.minecraft.client.option.SimpleOption
 import net.minecraft.client.gui.screen.option.LanguageOptionsScreen
 import net.minecraft.util.Util
 import kotlin.math.sin
 import kotlin.math.max
+import kotlin.math.min
 
 @Mixin(TitleScreen::class)
 abstract class TitleScreenMixin : Screen(Text.empty()) {
@@ -158,16 +158,15 @@ abstract class TitleScreenMixin : Screen(Text.empty()) {
         val guiScale = client.options.guiScale.value
         val scaleFactor = if (guiScale > 0) guiScale.toFloat() else 2.0f
         
-        val basePadding = 5
+        val basePadding = 8
         val baseLineSpacing = 2
-        val baseCornerRadius = 4
         val baseMargin = 8
+        val cornerRadius = 10
         
-        val padding = (basePadding * scaleFactor / 2.0f).toInt().coerceAtLeast(3)
+        val padding = (basePadding * scaleFactor / 2.0f).toInt().coerceAtLeast(6)
         val lineSpacing = (baseLineSpacing * scaleFactor / 2.0f).toInt().coerceAtLeast(1)
         val textHeight = this.textRenderer.fontHeight
-        val cornerRadius = (baseCornerRadius * scaleFactor / 2.0f).toInt().coerceAtLeast(2)
-        val margin = (baseMargin * scaleFactor / 2.0f).toInt().coerceAtLeast(4)
+        val margin = (baseMargin * scaleFactor / 2.0f).toInt().coerceAtLeast(6)
         
         links.clear()
         
@@ -192,15 +191,27 @@ abstract class TitleScreenMixin : Screen(Text.empty()) {
         val panelX = margin
         val panelY = this.height - panelHeight - margin
         
-        context.fill(
-            panelX,
-            panelY,
-            panelX + panelWidth,
-            panelY + panelHeight,
-            0xCC000000.toInt()
+        // 圆角背景
+        drawRoundedRect(
+            context, 
+            panelX, 
+            panelY, 
+            panelWidth, 
+            panelHeight, 
+            0xDD1A1A1A.toInt(),
+            cornerRadius
         )
         
-        drawRoundedRectOutline(context, panelX, panelY, panelWidth, panelHeight, cornerRadius, 0x66FFFFFF.toInt())
+        // 圆角边框
+        drawRoundedRectOutline(
+            context, 
+            panelX, 
+            panelY, 
+            panelWidth, 
+            panelHeight, 
+            0x66FFFFFF.toInt(),
+            cornerRadius
+        )
         
         var currentY = panelY + padding
         
@@ -224,12 +235,14 @@ abstract class TitleScreenMixin : Screen(Text.empty()) {
             context.drawText(this.textRenderer, linkText, link.x, link.y, displayColor, true)
             
             if (isHovered) {
-                context.fill(
+                drawRoundedRect(
+                    context,
                     link.x,
                     link.y + textHeight - 1,
-                    link.x + link.width,
-                    link.y + textHeight,
-                    displayColor
+                    link.width,
+                    2,
+                    displayColor,
+                    1
                 )
             }
             
@@ -248,32 +261,27 @@ abstract class TitleScreenMixin : Screen(Text.empty()) {
         val y = button.y
         val width = button.width
         val height = button.height
-        val cornerRadius = 3
+        val cornerRadius = 8
         
         val bgColor = when {
-            isHovered -> 0x99000000.toInt()
-            else -> 0x80000000.toInt()
+            isHovered -> 0xCC2A2A2A.toInt()
+            else -> 0xAA1A1A1A.toInt()
         }
         
         val strokeColor = when {
             isHovered -> 0xFFFFFFFF.toInt()
-            else -> 0xFFCCCCCC.toInt()
+            else -> 0x66CCCCCC.toInt()
         }
         
-        context.fill(
-            x + 1,
-            y + 1,
-            x + width - 1,
-            y + height - 1,
-            bgColor
-        )
-        
-        drawRoundedRectOutline(context, x, y, width, height, cornerRadius, strokeColor)
+        drawRoundedRect(context, x, y, width, height, bgColor, cornerRadius)
+        drawRoundedRectOutline(context, x, y, width, height, strokeColor, cornerRadius)
         
         val textWidth = this.textRenderer.getWidth(button.message)
         val textX = x + (width - textWidth) / 2
         val textY = y + (height - this.textRenderer.fontHeight) / 2 + 1
-        context.drawText(this.textRenderer, button.message, textX, textY, -1, true)
+        
+        val textColor = if (isHovered) 0xFFFFFFFF.toInt() else 0xFFDDDDDD.toInt()
+        context.drawText(this.textRenderer, button.message, textX, textY, textColor, true)
     }
     
     private fun renderECYclientText(
@@ -348,24 +356,141 @@ abstract class TitleScreenMixin : Screen(Text.empty()) {
         return 0xFF000000.toInt() or (red shl 16) or (green shl 8) or blueInt
     }
     
+    /**
+     * 绘制圆角矩形（实心，无重叠）
+     */
+    private fun drawRoundedRect(
+        context: DrawContext,
+        x: Int,
+        y: Int,
+        width: Int,
+        height: Int,
+        color: Int,
+        radius: Int
+    ) {
+        val r = radius.coerceAtMost(minOf(width / 2, height / 2))
+        
+        // 中央矩形（不覆盖四角区域）
+        context.fill(x + r, y + r, x + width - r, y + height - r, color)
+        
+        // 上边条（左右各减去圆角半径）
+        context.fill(x + r, y, x + width - r, y + r, color)
+        
+        // 下边条
+        context.fill(x + r, y + height - r, x + width - r, y + height, color)
+        
+        // 左边条
+        context.fill(x, y + r, x + r, y + height - r, color)
+        
+        // 右边条
+        context.fill(x + width - r, y + r, x + width, y + height - r, color)
+        
+        // 四个圆角（绘制四分之一实心圆）
+        drawQuarterCircle(context, x + r - 1, y + r - 1, r, color, 0)      // 左上
+        drawQuarterCircle(context, x + width - r, y + r - 1, r, color, 1)  // 右上
+        drawQuarterCircle(context, x + r - 1, y + height - r, r, color, 2) // 左下
+        drawQuarterCircle(context, x + width - r, y + height - r, r, color, 3) // 右下
+    }
+    
+    /**
+     * 绘制圆角矩形边框（无重叠）
+     */
     private fun drawRoundedRectOutline(
         context: DrawContext,
         x: Int,
         y: Int,
         width: Int,
         height: Int,
-        radius: Int,
-        color: Int
+        color: Int,
+        radius: Int
     ) {
-        context.fill(x + radius, y, x + width - radius, y + 1, color)
-        context.fill(x + radius, y + height - 1, x + width - radius, y + height, color)
+        val r = radius.coerceAtMost(minOf(width / 2, height / 2))
+        val thickness = 1
         
-        context.fill(x, y + radius, x + 1, y + height - radius, color)
-        context.fill(x + width - 1, y + radius, x + width, y + height - radius, color)
+        // 上边（不包含圆角部分）
+        context.fill(x + r, y, x + width - r, y + thickness, color)
         
-        context.fill(x + 1, y, x + radius, y + 1, color)
-        context.fill(x + width - radius, y, x + width - 1, y + 1, color)
-        context.fill(x + 1, y + height - 1, x + radius, y + height, color)
-        context.fill(x + width - radius, y + height - 1, x + width - 1, y + height, color)
+        // 下边
+        context.fill(x + r, y + height - thickness, x + width - r, y + height, color)
+        
+        // 左边
+        context.fill(x, y + r, x + thickness, y + height - r, color)
+        
+        // 右边
+        context.fill(x + width - thickness, y + r, x + width, y + height - r, color)
+        
+        // 四个圆角边框
+        drawQuarterCircleOutline(context, x + r - 1, y + r - 1, r, color, thickness, 0)      // 左上
+        drawQuarterCircleOutline(context, x + width - r, y + r - 1, r, color, thickness, 1)  // 右上
+        drawQuarterCircleOutline(context, x + r - 1, y + height - r, r, color, thickness, 2) // 左下
+        drawQuarterCircleOutline(context, x + width - r, y + height - r, r, color, thickness, 3) // 右下
+    }
+    
+    /**
+     * 绘制四分之一实心圆
+     * corner: 0=左上, 1=右上, 2=左下, 3=右下
+     */
+    private fun drawQuarterCircle(context: DrawContext, cx: Int, cy: Int, r: Int, color: Int, corner: Int) {
+        val rSq = r * r
+        for (i in 0 until r) {
+            for (j in 0 until r) {
+                if (i * i + j * j <= rSq) {
+                    val dx = when (corner) {
+                        0 -> -i
+                        1 -> i
+                        2 -> -i
+                        3 -> i
+                        else -> 0
+                    }
+                    val dy = when (corner) {
+                        0 -> -j
+                        1 -> -j
+                        2 -> j
+                        3 -> j
+                        else -> 0
+                    }
+                    context.fill(cx + dx, cy + dy, cx + dx + 1, cy + dy + 1, color)
+                }
+            }
+        }
+    }
+    
+    /**
+     * 绘制四分之一圆边框
+     * thickness: 边框粗细（像素）
+     */
+    private fun drawQuarterCircleOutline(
+        context: DrawContext,
+        cx: Int,
+        cy: Int,
+        r: Int,
+        color: Int,
+        thickness: Int,
+        corner: Int
+    ) {
+        val rSq = r * r
+        val innerRSq = (r - thickness) * (r - thickness)
+        for (i in 0 until r) {
+            for (j in 0 until r) {
+                val distSq = i * i + j * j
+                if (distSq <= rSq && distSq >= innerRSq) {
+                    val dx = when (corner) {
+                        0 -> -i
+                        1 -> i
+                        2 -> -i
+                        3 -> i
+                        else -> 0
+                    }
+                    val dy = when (corner) {
+                        0 -> -j
+                        1 -> -j
+                        2 -> j
+                        3 -> j
+                        else -> 0
+                    }
+                    context.fill(cx + dx, cy + dy, cx + dx + 1, cy + dy + 1, color)
+                }
+            }
+        }
     }
 }
