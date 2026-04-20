@@ -289,7 +289,7 @@ class ModuleConfigScreen(private val module: GameModule) : Screen(Text.translata
             tooltipX, tooltipY,
             tooltipX + textWidth + padding * 2,
             tooltipY + textHeight + padding * 2,
-            0xDD000000.toInt()
+            0xFF000000.toInt()
         )
         
         // 绘制文本
@@ -301,6 +301,7 @@ class ModuleConfigScreen(private val module: GameModule) : Screen(Text.translata
             0xFFFFFF,
             true
         )
+
     }
     
     private fun renderBlurredBackground(context: DrawContext, mouseX: Int, mouseY: Int, delta: Float, alpha: Float) {
