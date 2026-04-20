@@ -275,7 +275,7 @@ class ModuleConfigScreen(private val module: GameModule) : Screen(Text.translata
             tooltipX, tooltipY,
             tooltipX + textWidth + padding * 2,
             tooltipY + textHeight + padding * 2,
-            0xDD000000.toInt()
+            0xFF000000.toInt()
         )
         
         // 绘制边框
