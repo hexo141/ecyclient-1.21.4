@@ -141,27 +141,21 @@ class ModuleHudScreen : Screen(Text.translatable("ecyclient.modules.hud")) {
         val overlayColor = (overlayAlpha shl 24) or 0x000000
         context.fill(0, 0, width, height, overlayColor)
         
-        context.matrices.push()
-        
-        val centerIndex = windows.size / 2
-        val centerWindow = if (windows.isNotEmpty()) windows[centerIndex] else null
-        val windowCenterX = centerWindow?.let { it.x + windowWidth / 2f } ?: width / 2f
-        val windowCenterY = centerWindow?.let { it.y + it.getHeight() / 2f } ?: height / 2f
-        
-        context.matrices.translate(windowCenterX, windowCenterY, 0f)
-        context.matrices.scale(easedProgress, easedProgress, 1f)
-        context.matrices.translate(-windowCenterX, -windowCenterY, 0f)
-        
         for ((windowIndex, window) in windows.withIndex()) {
-            renderWindowFrame(context, window)
+            renderWindowFrame(context, window, easedProgress)
             
             if (!window.minimized) {
                 var buttonIndex = 0
                 for (button in window.buttons) {
-                    button.x = window.x + padding
-                    button.y = window.y + titleBarHeight + categoryHeaderHeight + buttonIndex * buttonHeight
-                    button.width = windowWidth - padding * 2
-                    button.height = buttonHeight
+                    val bx = window.x + padding
+                    val by = window.y + titleBarHeight + categoryHeaderHeight + buttonIndex * buttonHeight
+                    val bw = windowWidth - padding * 2
+                    val bh = buttonHeight
+                    
+                    button.x = bx
+                    button.y = by
+                    button.width = bw
+                    button.height = bh
                     
                     val buttonDelay = 0.1f + buttonIndex * 0.03f
                     val buttonProgress = ((animationProgress - buttonDelay) / (1f - buttonDelay)).coerceIn(0f, 1f)
@@ -170,94 +164,58 @@ class ModuleHudScreen : Screen(Text.translatable("ecyclient.modules.hud")) {
                     val bgColor = if (button.enabled) 0xFF00AA00.toInt() else 0xFF333333.toInt()
                     val indicatorColor = if (button.enabled) 0xFF00FF00.toInt() else 0xFF666666.toInt()
                     
-                    if (animationProgress >= 1f) {
-                        context.fill(button.x, button.y, button.x + button.width, button.y + button.height, bgColor)
-                        context.fill(button.x, button.y, button.x + 2, button.y + button.height, indicatorColor)
-                        
-                        context.drawText(
-                            textRenderer,
-                            button.name,
-                            button.x + 4,
-                            button.y + (buttonHeight - textRenderer.fontHeight) / 2,
-                            textColor,
-                            true
-                        )
-                        
-                        val hasConfig = false // 暂时不支持配置
-                        if (hasConfig) {
-                            val gearText = "⚙"
-                            val gearWidth = textRenderer.getWidth(gearText)
-                            context.drawText(
-                                textRenderer,
-                                gearText,
-                                button.x + button.width - gearWidth - 4,
-                                button.y + (buttonHeight - textRenderer.fontHeight) / 2,
-                                0xFFAAAAAA.toInt(),
-                                true
-                            )
-                        }
-                    } else {
-                        val buttonAlpha = (easedButtonProgress * 255).toInt().coerceIn(0, 255)
-                        
-                        val bgWithAlpha = (bgColor and 0x00FFFFFF) or (buttonAlpha shl 24)
-                        context.fill(button.x, button.y, button.x + button.width, button.y + button.height, bgWithAlpha)
-                        
-                        val indicatorAlpha = (easedButtonProgress * 255).toInt().coerceIn(0, 255)
-                        val colorWithAlpha = (indicatorColor and 0x00FFFFFF) or (indicatorAlpha shl 24)
-                        context.fill(button.x, button.y, button.x + 2, button.y + button.height, colorWithAlpha)
-                        
-                        val textAlpha = (easedButtonProgress * 255).toInt().coerceIn(0, 255)
-                        val textColorWithAlpha = (0xFFFFFF or (textAlpha shl 24))
-                        context.drawText(
-                            textRenderer,
-                            button.name,
-                            button.x + 4,
-                            button.y + (buttonHeight - textRenderer.fontHeight) / 2,
-                            textColorWithAlpha,
-                            true
-                        )
-                        
-                        val hasConfig = false // 暂时不支持配置
-                        if (hasConfig) {
-                            val gearText = "⚙"
-                            val gearWidth = textRenderer.getWidth(gearText)
-                            val gearAlpha = (easedButtonProgress * 170).toInt().coerceIn(0, 170)
-                            val gearColor = (0xAAAAAA or (gearAlpha shl 24))
-                            context.drawText(
-                                textRenderer,
-                                gearText,
-                                button.x + button.width - gearWidth - 4,
-                                button.y + (buttonHeight - textRenderer.fontHeight) / 2,
-                                gearColor,
-                                true
-                            )
-                        }
-                    }
+                    val buttonAlpha = (easedButtonProgress * 255).toInt().coerceIn(0, 255)
+                    
+                    val bgWithAlpha = (bgColor and 0x00FFFFFF) or (buttonAlpha shl 24)
+                    context.fill(bx, by, bx + bw, by + bh, bgWithAlpha)
+                    
+                    val indicatorAlpha = (easedButtonProgress * 255).toInt().coerceIn(0, 255)
+                    val colorWithAlpha = (indicatorColor and 0x00FFFFFF) or (indicatorAlpha shl 24)
+                    context.fill(bx, by, bx + 2, by + bh, colorWithAlpha)
+                    
+                    val textAlpha = (easedButtonProgress * 255).toInt().coerceIn(0, 255)
+                    val textColorWithAlpha = (0xFFFFFF or (textAlpha shl 24))
+                    context.drawText(
+                        textRenderer,
+                        button.name,
+                        bx + 4,
+                        by + (bh - textRenderer.fontHeight) / 2,
+                        textColorWithAlpha,
+                        true
+                    )
                     
                     buttonIndex++
                 }
             }
         }
-        
-        context.matrices.pop()
     }
     
     override fun renderBackground(context: DrawContext, mouseX: Int, mouseY: Int, delta: Float) {
     }
     
-    private fun renderWindowFrame(context: DrawContext, window: CategoryWindow) {
+    private fun renderWindowFrame(context: DrawContext, window: CategoryWindow, alpha: Float) {
         val windowHeight = window.getHeight()
         
-        context.fill(window.x - 1, window.y - 1, window.x + windowWidth + 1, window.y + windowHeight + 1, 0xFF000000.toInt())
+        val frameAlpha = (alpha * 255).toInt().coerceIn(0, 255)
+        val frameColor = (0xFF000000.toInt() and 0x00FFFFFF) or (frameAlpha shl 24)
+        context.fill(window.x - 1, window.y - 1, window.x + windowWidth + 1, window.y + windowHeight + 1, frameColor)
         
-        context.fill(window.x, window.y, window.x + windowWidth, window.y + titleBarHeight, titleBarColor)
+        val titleAlpha = (alpha * 221).toInt().coerceIn(0, 221)
+        val titleColor = (titleBarColor and 0x00FFFFFF) or (titleAlpha shl 24)
+        context.fill(window.x, window.y, window.x + windowWidth, window.y + titleBarHeight, titleColor)
         
         val title = "${window.category.name} ${if (window.minimized) "+" else "-"}"
-        context.drawText(textRenderer, title, window.x + 4, window.y + (titleBarHeight - textRenderer.fontHeight) / 2, titleTextColor, true)
+        val titleTextAlpha = (alpha * 170).toInt().coerceIn(0, 170)
+        val titleTextColorFinal = (titleTextColor and 0x00FFFFFF) or (titleTextAlpha shl 24)
+        context.drawText(textRenderer, title, window.x + 4, window.y + (titleBarHeight - textRenderer.fontHeight) / 2, titleTextColorFinal, true)
         
         if (!window.minimized) {
-            context.fill(window.x, window.y + titleBarHeight, window.x + windowWidth, window.y + titleBarHeight + categoryHeaderHeight, categoryHeaderColor)
-            context.drawText(textRenderer, "Modules", window.x + 4, window.y + titleBarHeight + 1, 0xFF888888.toInt(), true)
+            val headerAlpha = (alpha * 170).toInt().coerceIn(0, 170)
+            val headerColor = (categoryHeaderColor and 0x00FFFFFF) or (headerAlpha shl 24)
+            context.fill(window.x, window.y + titleBarHeight, window.x + windowWidth, window.y + titleBarHeight + categoryHeaderHeight, headerColor)
+            val modulesTextAlpha = (alpha * 136).toInt().coerceIn(0, 136)
+            val modulesTextColor = (0xFF888888.toInt() and 0x00FFFFFF) or (modulesTextAlpha shl 24)
+            context.drawText(textRenderer, "Modules", window.x + 4, window.y + titleBarHeight + 1, modulesTextColor, true)
         }
     }
     
@@ -327,16 +285,18 @@ class ModuleHudScreen : Screen(Text.translatable("ecyclient.modules.hud")) {
                     }
                 }
             }
-        } else if (button == 1) {
+        } else if (button == 1) { // 右键点击
             for (window in windows.reversed()) {
                 if (!window.minimized) {
                     for (btn in window.buttons) {
                         if (mx >= btn.x && mx <= btn.x + btn.width &&
                             my >= btn.y && my <= btn.y + btn.height) {
                             
-                            val hasConfig = false // 暂时不支持配置
-                            if (hasConfig) {
-                                // 未来可以打开配置界面
+                            val module = ModuleManager.getModuleById(btn.id)
+                            if (module != null && module.getConfig().isNotEmpty()) {
+                                // 打开配置编辑界面
+                                client?.setScreen(ModuleConfigScreen(module))
+                                playSound(SoundEvents.UI_BUTTON_CLICK.value(), 0.5f, 1.0f)
                                 return true
                             }
                         }

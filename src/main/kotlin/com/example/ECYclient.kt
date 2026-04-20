@@ -15,8 +15,10 @@ object ECYclient : ModInitializer, PreLaunchEntrypoint {
 		
 		// 键绑定已经在HudManager中定义，不需要额外初始化
 		
-		// 注册示例模块
+		// 注册模块
 		ModuleManager.register(ExampleModule)
+		ModuleManager.register(com.example.module.movement.AutoSprint)
+		ModuleManager.register(com.example.module.player.AutoWaterPlace)
 		
 		logger.info("ECYclient 系统初始化完成!")
 		logger.info("按 RSHIFT 键打开HUD界面")

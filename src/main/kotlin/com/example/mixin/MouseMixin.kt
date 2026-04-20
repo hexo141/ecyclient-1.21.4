@@ -13,14 +13,10 @@ class MouseMixin {
     
     @Inject(method = ["onMouseButton"], at = [At("HEAD")], cancellable = true)
     private fun onMouseButton(window: Long, button: Int, action: Int, mods: Int, ci: CallbackInfo) {
-        // 如果HUD可见，拦截鼠标点击事件
+        // 如果HUD可见，允许鼠标事件传递到HUD但不阻止游戏处理
         if (HudManager.isVisible()) {
-            if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT || button == GLFW.GLFW_MOUSE_BUTTON_RIGHT) {
-                if (action == GLFW.GLFW_PRESS) {
-                    // 阻止鼠标点击事件传递到游戏
-                    ci.cancel()
-                }
-            }
+            // 不取消事件，让HUD和游戏都能处理
+            // HUD会优先处理，如果HUD处理了事件，游戏就不会收到
         }
     }
     
