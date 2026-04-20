@@ -198,9 +198,20 @@ class ModuleConfigScreen(private val module: GameModule) : Screen(Text.translata
             val easedFieldProgress = easeOutCubic(fieldProgress)
             
             val labelAlpha = (easedFieldProgress * 255).toInt().coerceIn(0, 255)
-            val labelColorFinal = (0xFF000000.toInt() and 0x00FFFFFF) or (labelAlpha shl 24)
+            val labelColorFinal = (0xFFFFFF or (labelAlpha shl 24))
             
-            val label = fieldLabels[key] ?: "$key:"
+            var label = fieldLabels[key] ?: "$key:"
+            
+            // 截断过长的标签
+            val maxLabelWidth = labelWidth - 4
+            if (textRenderer.getWidth(label) > maxLabelWidth) {
+                var trimmedLabel = label
+                while (textRenderer.getWidth(trimmedLabel + "...") > maxLabelWidth && trimmedLabel.isNotEmpty()) {
+                    trimmedLabel = trimmedLabel.dropLast(1)
+                }
+                label = trimmedLabel + "..."
+            }
+            
             context.drawText(
                 textRenderer,
                 label,
@@ -209,6 +220,20 @@ class ModuleConfigScreen(private val module: GameModule) : Screen(Text.translata
                 labelColorFinal,
                 true
             )
+            
+            // 鼠标悬停时显示完整标签
+            val mouseXPos = mouseX
+            val mouseYPos = mouseY
+            if (mouseXPos >= windowX + padding && 
+                mouseXPos <= windowX + padding + labelWidth &&
+                mouseYPos >= currentY && 
+                mouseYPos <= currentY + fieldHeight) {
+                val originalLabel = fieldLabels[key] ?: "$key:"
+                if (originalLabel != label) {
+                    // 绘制工具提示
+                    renderTooltip(context, originalLabel, mouseXPos, mouseYPos)
+                }
+            }
             
             val bgAlpha = (easedFieldProgress * 80).toInt().coerceIn(0, 80)
             val bgColorFinal = (fieldBgColor and 0x00FFFFFF) or (bgAlpha shl 24)
@@ -223,6 +248,59 @@ class ModuleConfigScreen(private val module: GameModule) : Screen(Text.translata
             currentY += fieldHeight + padding
             fieldIndex++
         }
+    }
+
+    // 添加工具提示方法
+    private fun renderTooltip(context: DrawContext, text: String, mouseX: Int, mouseY: Int) {
+        val padding = 4
+        val textWidth = textRenderer.getWidth(text)
+        val textHeight = textRenderer.fontHeight
+        
+        var tooltipX = mouseX + 12
+        var tooltipY = mouseY - 12
+        
+        // 防止超出屏幕边界
+        if (tooltipX + textWidth + padding * 2 > width) {
+            tooltipX = mouseX - textWidth - padding * 2 - 12
+        }
+        if (tooltipY + textHeight + padding * 2 > height) {
+            tooltipY = mouseY - textHeight - padding * 2 - 8
+        }
+        if (tooltipY < 0) {
+            tooltipY = mouseY + 12
+        }
+        
+        // 绘制背景
+        context.fill(
+            tooltipX, tooltipY,
+            tooltipX + textWidth + padding * 2,
+            tooltipY + textHeight + padding * 2,
+            0xDD000000.toInt()
+        )
+        
+        // 绘制边框
+        context.fill(
+            tooltipX - 1, tooltipY - 1,
+            tooltipX + textWidth + padding * 2 + 1,
+            tooltipY + textHeight + padding * 2 + 1,
+            0xFF555555.toInt()
+        )
+        context.fill(
+            tooltipX, tooltipY,
+            tooltipX + textWidth + padding * 2,
+            tooltipY + textHeight + padding * 2,
+            0xDD000000.toInt()
+        )
+        
+        // 绘制文本
+        context.drawText(
+            textRenderer,
+            text,
+            tooltipX + padding,
+            tooltipY + padding,
+            0xFFFFFF,
+            true
+        )
     }
     
     private fun renderBlurredBackground(context: DrawContext, mouseX: Int, mouseY: Int, delta: Float, alpha: Float) {
