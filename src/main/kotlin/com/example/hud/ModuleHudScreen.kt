@@ -71,29 +71,28 @@ class ModuleHudScreen : Screen(Text.translatable("ecyclient.modules.hud")) {
         lastRenderTime = System.currentTimeMillis()
         playSound(SoundEvents.BLOCK_NOTE_BLOCK_PLING.value(), 1.0f, 1.2f)
         
-        val metadataList = ModuleManager.getAllMetadata()
-        if (metadataList.isEmpty()) {
-            val defaultWindow = CategoryWindow(ModuleCategory.OTHER, width / 2 - windowWidth / 2, height / 4, titleBarHeight = titleBarHeight, categoryHeaderHeight = categoryHeaderHeight, buttonHeight = buttonHeight)
+        val modules = ModuleManager.getModules()
+        if (modules.isEmpty()) {
+            val defaultWindow = CategoryWindow(ModuleCategory.MISC, width / 2 - windowWidth / 2, height / 4, titleBarHeight = titleBarHeight, categoryHeaderHeight = categoryHeaderHeight, buttonHeight = buttonHeight)
             windows.add(defaultWindow)
             return
         }
         
-        val categories = listOf(ModuleCategory.DISPLAY, ModuleCategory.ASSISTANT, ModuleCategory.CHEATING, ModuleCategory.OTHER)
+        val categories = listOf(ModuleCategory.COMBAT, ModuleCategory.MOVEMENT, ModuleCategory.RENDER, ModuleCategory.PLAYER, ModuleCategory.MISC)
         var startY = height / 6
         
         for (category in categories) {
-            val categoryModules = metadataList.filter { it.category == category }
+            val categoryModules = modules.filter { it.metadata.category == category }
             if (categoryModules.isEmpty()) continue
             
             val window = CategoryWindow(category, width / 2 - windowWidth / 2, startY, titleBarHeight = titleBarHeight, categoryHeaderHeight = categoryHeaderHeight, buttonHeight = buttonHeight)
             
-            for (metadata in categoryModules) {
-                val module = ModuleManager.getModule(metadata.id)
-                val isEnabled = module?.state == ModuleState.LOADED
+            for (module in categoryModules) {
+                val isEnabled = module.state == ModuleState.ENABLED
                 
                 window.buttons.add(ModuleButton(
-                    name = metadata.name,
-                    id = metadata.id,
+                    name = module.metadata.name,
+                    id = module.metadata.id,
                     enabled = isEnabled
                 ))
             }
@@ -124,8 +123,8 @@ class ModuleHudScreen : Screen(Text.translatable("ecyclient.modules.hud")) {
         
         for (window in windows) {
             for (button in window.buttons) {
-                val module = ModuleManager.getModule(button.id)
-                button.enabled = module?.state == ModuleState.LOADED
+                val module = ModuleManager.getModuleById(button.id)
+                button.enabled = module?.state == ModuleState.ENABLED
             }
         }
         
@@ -184,7 +183,7 @@ class ModuleHudScreen : Screen(Text.translatable("ecyclient.modules.hud")) {
                             true
                         )
                         
-                        val hasConfig = com.example.module.config.ConfigPersistence.hasConfig(button.id) || button.id == "auto_water_place" || button.id == "auto_sprint"
+                        val hasConfig = false // 暂时不支持配置
                         if (hasConfig) {
                             val gearText = "⚙"
                             val gearWidth = textRenderer.getWidth(gearText)
@@ -218,7 +217,7 @@ class ModuleHudScreen : Screen(Text.translatable("ecyclient.modules.hud")) {
                             true
                         )
                         
-                        val hasConfig = com.example.module.config.ConfigPersistence.hasConfig(button.id) || button.id == "auto_water_place" || button.id == "auto_sprint"
+                        val hasConfig = false // 暂时不支持配置
                         if (hasConfig) {
                             val gearText = "⚙"
                             val gearWidth = textRenderer.getWidth(gearText)
@@ -253,7 +252,7 @@ class ModuleHudScreen : Screen(Text.translatable("ecyclient.modules.hud")) {
         
         context.fill(window.x, window.y, window.x + windowWidth, window.y + titleBarHeight, titleBarColor)
         
-        val title = "${window.category.displayName} ${if (window.minimized) "+" else "-"}"
+        val title = "${window.category.name} ${if (window.minimized) "+" else "-"}"
         context.drawText(textRenderer, title, window.x + 4, window.y + (titleBarHeight - textRenderer.fontHeight) / 2, titleTextColor, true)
         
         if (!window.minimized) {
@@ -313,12 +312,15 @@ class ModuleHudScreen : Screen(Text.translatable("ecyclient.modules.hud")) {
                             val newState = !btn.enabled
                             btn.enabled = newState
                             
-                            if (newState) {
-                                ModuleManager.enableModule(btn.id)
-                                playSound(SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, 0.5f, 1.5f)
-                            } else {
-                                ModuleManager.disableModule(btn.id)
-                                playSound(SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, 0.5f, 0.5f)
+                            val module = ModuleManager.getModuleById(btn.id)
+                            if (module != null) {
+                                if (newState) {
+                                    ModuleManager.enable(module)
+                                    playSound(SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, 0.5f, 1.5f)
+                                } else {
+                                    ModuleManager.disable(module)
+                                    playSound(SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, 0.5f, 0.5f)
+                                }
                             }
                             return true
                         }
@@ -332,9 +334,9 @@ class ModuleHudScreen : Screen(Text.translatable("ecyclient.modules.hud")) {
                         if (mx >= btn.x && mx <= btn.x + btn.width &&
                             my >= btn.y && my <= btn.y + btn.height) {
                             
-                            val hasConfig = com.example.module.config.ConfigPersistence.hasConfig(btn.id) || btn.id == "auto_water_place" || btn.id == "auto_sprint"
+                            val hasConfig = false // 暂时不支持配置
                             if (hasConfig) {
-                                client?.setScreen(ModuleConfigScreen(btn.id, this))
+                                // 未来可以打开配置界面
                                 return true
                             }
                         }

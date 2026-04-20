@@ -1,6 +1,7 @@
 package com.example
 
 import com.example.module.ModuleManager
+import com.example.module.example.ExampleModule
 import com.example.util.VideoStopHelper
 import net.fabricmc.api.ModInitializer
 import net.fabricmc.loader.api.entrypoint.PreLaunchEntrypoint
@@ -10,8 +11,15 @@ object ECYclient : ModInitializer, PreLaunchEntrypoint {
     private val logger = LoggerFactory.getLogger("ecyclient")
 
 	override fun onInitialize() {
-		logger.info("Hello ECYclient!")
-		ModuleManager.init()
+		logger.info("ECYclient 系统初始化中...")
+		
+		// 键绑定已经在HudManager中定义，不需要额外初始化
+		
+		// 注册示例模块
+		ModuleManager.register(ExampleModule)
+		
+		logger.info("ECYclient 系统初始化完成!")
+		logger.info("按 RSHIFT 键打开HUD界面")
 	}
 	
 	override fun onPreLaunch() {

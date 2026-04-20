@@ -26,6 +26,10 @@ dependencies {
 	modImplementation("org.openjfx:javafx-graphics:21")
 	modImplementation("org.openjfx:javafx-media:21")
 
+	// JSON 处理依赖
+	modImplementation("com.google.code.gson:gson:2.10.1")
+	include("com.google.code.gson:gson:2.10.1")
+
 	// 平台特定实现 - 使用 include 打包
 	val javafxVersion = "21"
 	

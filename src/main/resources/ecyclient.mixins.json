@@ -6,10 +6,9 @@
 	"client": [
 		"TitleScreenMixin",
 		"MinecraftClientMixin",
-		"ModuleLifecycleMixin",
-		"ModuleHudKeyMixin",
 		"InGameHudMixin",
-		"PlayerListEntryMixin"
+		"MouseMixin",
+		"KeyboardMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
