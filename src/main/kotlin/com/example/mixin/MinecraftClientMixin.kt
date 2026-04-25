@@ -1,7 +1,9 @@
 package com.example.mixin
 
+import com.example.effect.MotionBlurEffect
 import com.example.hud.HudManager
 import com.example.module.ModuleManager
+import com.example.module.render.MotionBlur
 import com.example.util.VideoStopHelper
 import net.minecraft.client.MinecraftClient
 import net.minecraft.client.gui.DrawContext
@@ -21,6 +23,15 @@ abstract class MinecraftClientMixin {
         ModuleManager.onTick()
     }
     
+    @Inject(method = ["render"], at = [At("HEAD")])
+    private fun onRenderStart(tick: Boolean, ci: CallbackInfo) {
+        VideoStopHelper.onRenderStart()
+        
+        if (MotionBlur.state == com.example.module.ModuleState.ENABLED) {
+            MotionBlurEffect.onBeforeRender()
+        }
+    }
+    
     @Inject(method = ["render"], at = [At("TAIL")])
     private fun onRender(tick: Boolean, ci: CallbackInfo) {
         val client = MinecraftClient.getInstance()
@@ -30,11 +41,10 @@ abstract class MinecraftClientMixin {
         ModuleManager.onRender(context, 1.0f)
         
         // HUD现在使用Screen类，不需要在这里渲染
-    }
-    
-    @Inject(method = ["render"], at = [At("HEAD")])
-    private fun onRenderStart(tick: Boolean, ci: CallbackInfo) {
-        VideoStopHelper.onRenderStart()
+        
+        if (MotionBlur.state == com.example.module.ModuleState.ENABLED) {
+            MotionBlurEffect.onAfterRender()
+        }
     }
     
     @Inject(method = ["handleInputEvents"], at = [At("HEAD")])
