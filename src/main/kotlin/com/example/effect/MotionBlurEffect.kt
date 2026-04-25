@@ -25,7 +25,6 @@ object MotionBlurEffect {
         previousFrame = SimpleFramebuffer(fbWidth, fbHeight, true)
         previousFrame!!.setClearColor(0f, 0f, 0f, 0f)
         previousFrame!!.clear()
-        MinecraftClient.getInstance().framebuffer.beginWrite(false)
         isInitialized = true
     }
 
@@ -74,9 +73,12 @@ object MotionBlurEffect {
         GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, mainFboId)
 
         GL11.glEnable(GL11.GL_BLEND)
-        GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA)
+        GL11.glBlendFunc(GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA)
 
         val alpha = (255 * (1.0f - strength)).toInt().coerceIn(0, 255)
+
+        GL13.glActiveTexture(GL13.GL_TEXTURE0)
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, prevTexture)
 
         val buffer = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_TEXTURE_COLOR)
         buffer.vertex(0f, fbHeight.toFloat(), 0f).texture(0f, 1f).color(255, 255, 255, alpha)
@@ -85,9 +87,6 @@ object MotionBlurEffect {
         buffer.vertex(0f, 0f, 0f).texture(0f, 0f).color(255, 255, 255, alpha)
 
         val builtBuffer = buffer.end()
-
-        GL13.glActiveTexture(GL13.GL_TEXTURE0)
-        GL11.glBindTexture(GL11.GL_TEXTURE_2D, prevTexture)
 
         BufferRenderer.drawWithGlobalProgram(builtBuffer)
 
