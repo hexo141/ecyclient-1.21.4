@@ -6,7 +6,6 @@ import com.example.module.ModuleManager
 import net.minecraft.client.MinecraftClient
 import net.minecraft.client.gui.DrawContext
 import net.minecraft.client.gui.screen.Screen
-import net.minecraft.client.gui.widget.ButtonWidget
 import net.minecraft.client.gui.widget.TextFieldWidget
 import net.minecraft.client.sound.PositionedSoundInstance
 import net.minecraft.sound.SoundEvents
@@ -16,21 +15,26 @@ import org.lwjgl.glfw.GLFW
 class ModuleConfigScreen(private val module: GameModule) : Screen(Text.translatable("ecyclient.modules.config", module.metadata.name)) {
     
     private val config = module.getConfig()
-    private val textFields = mutableMapOf<String, TextFieldWidget>()
-    private val fieldLabels = mutableMapOf<String, String>()
+    private val configKeys = config.keys.toList()
+    private val configValues = config.values.toMutableList()
     
-    private val windowWidth = 300
+    private val windowWidth = 260
+    private val windowHeight = 280
     private val titleBarHeight = 20
-    private val fieldHeight = 20
-    private val labelWidth = 80
-    private val buttonHeight = 20
+    private val fieldHeight = 16
     private val padding = 6
-    private val backgroundColor = 0xBB000000.toInt()
-    private val titleBarColor = 0xDD222222.toInt()
-    private val fieldBgColor = 0xFF333333.toInt()
+    private val backgroundColor = 0xDD000000.toInt()
+    private val titleBarColor = 0xFF000000.toInt()
+    private val fieldBgColor = 0xBB000000.toInt()
     private val textColor = 0xFFFFFFFF.toInt()
-    private val titleTextColor = 0xFFAAAAAA.toInt()
-    private val labelColor = 0xFF888888.toInt()
+    private val titleTextColor = 0xFFFFD700.toInt()
+    private val labelColor = 0xFFCCCCCC.toInt()
+    private val valueColor = 0xFFAAAAAA.toInt()
+    private val borderColor = 0xFF333333.toInt()
+    private val arrowColor = 0xFFFF0000.toInt()
+    private val hoverColor = 0x22FFFFFF.toInt()
+    private val editFieldBgColor = 0xFF222222.toInt()
+    private val editFieldBorderColor = 0xFF555555.toInt()
     
     private var animationProgress = 0f
     private var isClosing = false
@@ -39,10 +43,13 @@ class ModuleConfigScreen(private val module: GameModule) : Screen(Text.translata
     
     private var windowX = 0
     private var windowY = 0
-    private var windowHeight = 0
     
-    private var saveButton: ButtonWidget? = null
-    private var cancelButton: ButtonWidget? = null
+    private var scrollOffset = 0
+    private val maxVisibleFields = 12
+    
+    private var originalConfig: Map<String, Any> = emptyMap()
+    private var editingIndex: Int = -1
+    private var editTextField: TextFieldWidget? = null
     
     override fun init() {
         super.init()
@@ -51,59 +58,28 @@ class ModuleConfigScreen(private val module: GameModule) : Screen(Text.translata
         lastRenderTime = System.currentTimeMillis()
         playSound(SoundEvents.BLOCK_NOTE_BLOCK_PLING.value(), 1.0f, 1.2f)
         
-        textFields.clear()
-        fieldLabels.clear()
+        originalConfig = config.toMap()
         
         windowX = width / 2 - windowWidth / 2
-        windowY = height / 4
+        windowY = height / 2 - windowHeight / 2
         
-        val fieldsCount = config.size
-        val fieldsAreaHeight = fieldsCount * (fieldHeight + padding) + padding * 2
-        val buttonsAreaHeight = buttonHeight + padding * 2
-        val descriptionHeight = if (module.metadata.description.isNotEmpty()) 24 else 0
-        windowHeight = titleBarHeight + descriptionHeight + fieldsAreaHeight + buttonsAreaHeight
-        
-        var currentY = windowY + titleBarHeight + descriptionHeight + padding
-        
-        val fieldStartX = windowX + padding
-        val labelStartX = fieldStartX
-        val inputStartX = labelStartX + labelWidth + padding
-        val inputWidth = windowWidth - padding * 3 - labelWidth
-        
-        for ((key, value) in config) {
-            fieldLabels[key] = "$key:"
-            
-            val textField = TextFieldWidget(
-                textRenderer,
-                inputStartX, currentY, inputWidth, fieldHeight,
-                Text.literal(key)
-            )
-            textField.text = value.toString()
-            textField.setEditableColor(textColor)
-            textField.setUneditableColor(labelColor)
-            textFields[key] = textField
-            addSelectableChild(textField)
-            
-            currentY += fieldHeight + padding
+        editTextField = null
+        editingIndex = -1
+    }
+    
+    private fun scrollUp() {
+        if (scrollOffset > 0) {
+            scrollOffset--
+            playSound(SoundEvents.UI_BUTTON_CLICK.value(), 0.5f, 1.2f)
         }
-        
-        val buttonWidth = 80
-        val buttonY = windowY + windowHeight - buttonHeight - padding
-        
-        saveButton = ButtonWidget.builder(
-            Text.translatable("保存"),
-            { saveConfig() }
-        ).dimensions(windowX + windowWidth / 2 - buttonWidth - padding / 2, buttonY, buttonWidth, buttonHeight).build()
-        
-        cancelButton = ButtonWidget.builder(
-            Text.translatable("取消"),
-            { startClosing() }
-        ).dimensions(windowX + windowWidth / 2 + padding / 2, buttonY, buttonWidth, buttonHeight).build()
-        
-        addDrawableChild(saveButton)
-        addDrawableChild(cancelButton)
-        
-        setInitialFocus(textFields.values.firstOrNull())
+    }
+    
+    private fun scrollDown() {
+        val maxScroll = maxOf(0, configKeys.size - maxVisibleFields)
+        if (scrollOffset < maxScroll) {
+            scrollOffset++
+            playSound(SoundEvents.UI_BUTTON_CLICK.value(), 0.5f, 1.2f)
+        }
     }
     
     override fun render(context: DrawContext, mouseX: Int, mouseY: Int, delta: Float) {
@@ -139,10 +115,33 @@ class ModuleConfigScreen(private val module: GameModule) : Screen(Text.translata
         context.fill(0, 0, width, height, overlayColor)
         
         renderWindowFrame(context, easedProgress)
-        renderFields(context, mouseX, mouseY, delta, easedProgress)
+        renderConfigFields(context, mouseX, mouseY, delta, easedProgress)
         
-        saveButton?.render(context, mouseX, mouseY, delta)
-        cancelButton?.render(context, mouseX, mouseY, delta)
+        renderCloseButton(context, mouseX, mouseY, delta)
+        
+        editTextField?.render(context, mouseX, mouseY, delta)
+    }
+    
+    private fun renderCloseButton(context: DrawContext, mouseX: Int, mouseY: Int, delta: Float) {
+        val btnX = windowX + windowWidth - 16
+        val btnY = windowY + 2
+        val btnW = 14
+        val btnH = 14
+        
+        val isHovered = mouseX >= btnX && mouseX <= btnX + btnW && mouseY >= btnY && mouseY <= btnY + btnH
+        
+        if (isHovered) {
+            context.fill(btnX, btnY, btnX + btnW, btnY + btnH, 0x44FF0000.toInt())
+        }
+        
+        context.drawText(
+            textRenderer,
+            "X",
+            btnX + (btnW - textRenderer.getWidth("X")) / 2,
+            btnY + (btnH - textRenderer.fontHeight) / 2,
+            if (isHovered) 0xFFFF4444.toInt() else 0xFFAAAAAA.toInt(),
+            true
+        )
     }
     
     override fun renderBackground(context: DrawContext, mouseX: Int, mouseY: Int, delta: Float) {
@@ -153,15 +152,15 @@ class ModuleConfigScreen(private val module: GameModule) : Screen(Text.translata
         val frameColor = (0xFF000000.toInt() and 0x00FFFFFF) or (frameAlpha shl 24)
         context.fill(windowX - 1, windowY - 1, windowX + windowWidth + 1, windowY + windowHeight + 1, frameColor)
         
-        val bgAlpha = (alpha * 187).toInt().coerceIn(0, 187)
+        val bgAlpha = (alpha * 221).toInt().coerceIn(0, 221)
         val bgColor = (backgroundColor and 0x00FFFFFF) or (bgAlpha shl 24)
         context.fill(windowX, windowY, windowX + windowWidth, windowY + windowHeight, bgColor)
         
-        val titleAlpha = (alpha * 221).toInt().coerceIn(0, 221)
+        val titleAlpha = (alpha * 255).toInt().coerceIn(0, 255)
         val titleColor = (titleBarColor and 0x00FFFFFF) or (titleAlpha shl 24)
         context.fill(windowX, windowY, windowX + windowWidth, windowY + titleBarHeight, titleColor)
         
-        val title = "${module.metadata.name} 配置"
+        val title = "Config"
         val titleTextAlpha = (alpha * 255).toInt().coerceIn(0, 255)
         val titleTextColorFinal = (titleTextColor and 0x00FFFFFF) or (titleTextAlpha shl 24)
         context.drawText(
@@ -173,137 +172,129 @@ class ModuleConfigScreen(private val module: GameModule) : Screen(Text.translata
             true
         )
         
-        if (module.metadata.description.isNotEmpty()) {
-            val descAlpha = (alpha * 170).toInt().coerceIn(0, 170)
-            val descColor = (labelColor and 0x00FFFFFF) or (descAlpha shl 24)
-            context.drawText(
-                textRenderer,
-                module.metadata.description,
-                windowX + padding,
-                windowY + titleBarHeight + 4,
-                descColor,
-                true
-            )
-        }
+        context.fill(
+            windowX, windowY + titleBarHeight,
+            windowX + windowWidth, windowY + titleBarHeight + 1,
+            borderColor
+        )
     }
     
-    private fun renderFields(context: DrawContext, mouseX: Int, mouseY: Int, delta: Float, alpha: Float) {
-        var fieldIndex = 0
-        val descriptionHeight = if (module.metadata.description.isNotEmpty()) 24 else 0
-        var currentY = windowY + titleBarHeight + descriptionHeight + padding
+    private fun renderConfigFields(context: DrawContext, mouseX: Int, mouseY: Int, delta: Float, alpha: Float) {
+        val contentStartY = windowY + titleBarHeight + 4
+        val labelWidth = 110
+        val valueStartX = windowX + windowWidth - padding - 4
         
-        for ((key, textField) in textFields) {
-            val fieldDelay = 0.05f + fieldIndex * 0.02f
+        val maxScroll = maxOf(0, configKeys.size - maxVisibleFields)
+        scrollOffset = scrollOffset.coerceIn(0, maxScroll)
+        
+        val visibleCount = minOf(maxVisibleFields, configKeys.size - scrollOffset)
+        
+        for (i in 0 until visibleCount) {
+            val index = scrollOffset + i
+            if (index >= configKeys.size) break
+            
+            val key = configKeys[index]
+            val value = configValues[index]
+            
+            val fieldDelay = 0.05f + i * 0.02f
             val fieldProgress = ((alpha - fieldDelay) / (1f - fieldDelay)).coerceIn(0f, 1f)
             val easedFieldProgress = easeOutCubic(fieldProgress)
             
+            val currentY = contentStartY + i * (fieldHeight + 2)
+            
             val labelAlpha = (easedFieldProgress * 255).toInt().coerceIn(0, 255)
-            val labelColorFinal = (0xFFFFFF or (labelAlpha shl 24))
+            val labelColorFinal = (labelColor and 0x00FFFFFF) or (labelAlpha shl 24)
             
-            var label = fieldLabels[key] ?: "$key:"
+            var displayLabel = key
             
-            // 截断过长的标签
             val maxLabelWidth = labelWidth - 4
-            if (textRenderer.getWidth(label) > maxLabelWidth) {
-                var trimmedLabel = label
+            if (textRenderer.getWidth(displayLabel) > maxLabelWidth) {
+                var trimmedLabel = displayLabel
                 while (textRenderer.getWidth(trimmedLabel + "...") > maxLabelWidth && trimmedLabel.isNotEmpty()) {
                     trimmedLabel = trimmedLabel.dropLast(1)
                 }
-                label = trimmedLabel + "..."
+                displayLabel = trimmedLabel + "..."
             }
             
             context.drawText(
                 textRenderer,
-                label,
+                displayLabel,
                 windowX + padding,
                 currentY + (fieldHeight - textRenderer.fontHeight) / 2,
                 labelColorFinal,
                 true
             )
             
-            // 鼠标悬停时显示完整标签
-            val mouseXPos = mouseX
-            val mouseYPos = mouseY
-            if (mouseXPos >= windowX + padding && 
-                mouseXPos <= windowX + padding + labelWidth &&
-                mouseYPos >= currentY && 
-                mouseYPos <= currentY + fieldHeight) {
-                val originalLabel = fieldLabels[key] ?: "$key:"
-                if (originalLabel != label) {
-                    // 绘制工具提示
-                    renderTooltip(context, originalLabel, mouseXPos, mouseYPos)
+            val isEditing = editingIndex == index
+            
+            if (isEditing) {
+                val editFieldWidth = windowWidth - padding * 2 - labelWidth
+                if (editTextField == null || editTextField!!.x != windowX + padding + labelWidth || editTextField!!.y != currentY) {
+                    editTextField = TextFieldWidget(
+                        textRenderer,
+                        windowX + padding + labelWidth, currentY,
+                        editFieldWidth, fieldHeight,
+                        Text.literal(key)
+                    )
+                    editTextField!!.text = value.toString()
+                    editTextField!!.setEditableColor(textColor)
+                    editTextField!!.setUneditableColor(valueColor)
+                    editTextField!!.setFocused(true)
+                    setInitialFocus(editTextField)
                 }
+            } else {
+                val valueText = formatValueForDisplay(key, value)
+                val valueWidth = textRenderer.getWidth(valueText)
+                val valueX = valueStartX - valueWidth
+                
+                val valueColorFinal = (valueColor and 0x00FFFFFF) or (labelAlpha shl 24)
+                context.drawText(
+                    textRenderer,
+                    valueText,
+                    valueX,
+                    currentY + (fieldHeight - textRenderer.fontHeight) / 2,
+                    valueColorFinal,
+                    true
+                )
             }
             
-            val bgAlpha = (easedFieldProgress * 80).toInt().coerceIn(0, 80)
-            val bgColorFinal = (fieldBgColor and 0x00FFFFFF) or (bgAlpha shl 24)
-            context.fill(
-                textField.x, textField.y,
-                textField.x + textField.width, textField.y + textField.height,
-                bgColorFinal
+            if (!isEditing && mouseX >= windowX + padding && mouseX <= windowX + windowWidth - padding &&
+                mouseY >= currentY && mouseY <= currentY + fieldHeight) {
+                context.fill(
+                    windowX + padding, currentY,
+                    windowX + windowWidth - padding, currentY + fieldHeight,
+                    hoverColor
+                )
+            }
+        }
+        
+        if (scrollOffset > 0) {
+            val upAlpha = (alpha * 255).toInt().coerceIn(0, 255)
+            val upColor = (arrowColor and 0x00FFFFFF) or (upAlpha shl 24)
+            context.drawText(
+                textRenderer,
+                "^",
+                windowX + 2,
+                windowY + titleBarHeight + 2,
+                upColor,
+                true
             )
-            
-            textField.render(context, mouseX, mouseY, delta)
-            
-            currentY += fieldHeight + padding
-            fieldIndex++
+        }
+        
+        if (scrollOffset < maxOf(0, configKeys.size - maxVisibleFields)) {
+            val downAlpha = (alpha * 255).toInt().coerceIn(0, 255)
+            val downColor = (arrowColor and 0x00FFFFFF) or (downAlpha shl 24)
+            context.drawText(
+                textRenderer,
+                "v",
+                windowX + 2,
+                windowY + windowHeight - 20,
+                downColor,
+                true
+            )
         }
     }
 
-    // 添加工具提示方法
-    private fun renderTooltip(context: DrawContext, text: String, mouseX: Int, mouseY: Int) {
-        val padding = 4
-        val textWidth = textRenderer.getWidth(text)
-        val textHeight = textRenderer.fontHeight
-        
-        var tooltipX = mouseX + 12
-        var tooltipY = mouseY - 12
-        
-        // 防止超出屏幕边界
-        if (tooltipX + textWidth + padding * 2 > width) {
-            tooltipX = mouseX - textWidth - padding * 2 - 12
-        }
-        if (tooltipY + textHeight + padding * 2 > height) {
-            tooltipY = mouseY - textHeight - padding * 2 - 8
-        }
-        if (tooltipY < 0) {
-            tooltipY = mouseY + 12
-        }
-        
-        // 绘制背景
-        context.fill(
-            tooltipX, tooltipY,
-            tooltipX + textWidth + padding * 2,
-            tooltipY + textHeight + padding * 2,
-            0xFF000000.toInt()
-        )
-        
-        // 绘制边框
-        context.fill(
-            tooltipX - 1, tooltipY - 1,
-            tooltipX + textWidth + padding * 2 + 1,
-            tooltipY + textHeight + padding * 2 + 1,
-            0xFF555555.toInt()
-        )
-        context.fill(
-            tooltipX, tooltipY,
-            tooltipX + textWidth + padding * 2,
-            tooltipY + textHeight + padding * 2,
-            0xFF000000.toInt()
-        )
-        
-        // 绘制文本
-        context.drawText(
-            textRenderer,
-            text,
-            tooltipX + padding,
-            tooltipY + padding,
-            0xFFFFFF,
-            true
-        )
-
-    }
-    
     private fun renderBlurredBackground(context: DrawContext, mouseX: Int, mouseY: Int, delta: Float, alpha: Float) {
         val blurAmount = 8
         
@@ -321,6 +312,33 @@ class ModuleConfigScreen(private val module: GameModule) : Screen(Text.translata
         }
     }
     
+    private fun formatValueForDisplay(key: String, value: Any): String {
+        return if (value is Int && key.lowercase().contains("color")) {
+            String.format("#%08X", value.toLong() and 0xFFFFFFFFL)
+        } else {
+            value.toString()
+        }
+    }
+    
+    private fun parseConfigValue(key: String, originalValue: Any?, newText: String): Any {
+        return when (originalValue) {
+            is Boolean -> newText.toBoolean()
+            is Int -> {
+                if (key.lowercase().contains("color")) {
+                    val hexStr = if (newText.startsWith("#")) newText.substring(1) else newText
+                    java.lang.Long.parseLong(hexStr, 16).toInt()
+                } else {
+                    newText.toInt()
+                }
+            }
+            is Float -> newText.toFloat()
+            is Double -> newText.toDouble()
+            is Long -> newText.toLong()
+            is String -> newText
+            else -> newText
+        }
+    }
+    
     private fun easeOutCubic(t: Float): Float {
         val clamped = t.coerceIn(0f, 1f)
         val v = 1f - clamped
@@ -333,40 +351,124 @@ class ModuleConfigScreen(private val module: GameModule) : Screen(Text.translata
     }
     
     override fun mouseClicked(mouseX: Double, mouseY: Double, button: Int): Boolean {
-        for (textField in textFields.values) {
-            if (textField.mouseClicked(mouseX, mouseY, button)) {
+        val mx = mouseX.toInt()
+        val my = mouseY.toInt()
+        
+        val btnX = windowX + windowWidth - 16
+        val btnY = windowY + 2
+        val btnW = 14
+        val btnH = 14
+        
+        if (mx >= btnX && mx <= btnX + btnW && my >= btnY && my <= btnY + btnH) {
+            startClosing()
+            playSound(SoundEvents.UI_BUTTON_CLICK.value(), 0.5f, 1.0f)
+            return true
+        }
+        
+        val contentStartY = windowY + titleBarHeight + 4
+        val labelWidth = 110
+        val maxScroll = maxOf(0, configKeys.size - maxVisibleFields)
+        val visibleCount = minOf(maxVisibleFields, configKeys.size - scrollOffset)
+        
+        for (i in 0 until visibleCount) {
+            val index = scrollOffset + i
+            if (index >= configKeys.size) break
+            
+            val currentY = contentStartY + i * (fieldHeight + 2)
+            
+            if (mx >= windowX + padding && mx <= windowX + windowWidth - padding &&
+                my >= currentY && my <= currentY + fieldHeight) {
+                
+                if (editingIndex == index) {
+                    finishEditing()
+                } else {
+                    editingIndex = index
+                    editTextField = null
+                }
+                playSound(SoundEvents.UI_BUTTON_CLICK.value(), 0.5f, 1.0f)
                 return true
             }
+        }
+        
+        if (editingIndex >= 0) {
+            finishEditing()
         }
         
         return super.mouseClicked(mouseX, mouseY, button)
     }
     
+    private fun finishEditing() {
+        if (editingIndex >= 0 && editTextField != null) {
+            val newText = editTextField!!.text
+            val key = configKeys[editingIndex]
+            val originalValue = originalConfig[key]
+            
+            try {
+                val newValue = parseConfigValue(key, originalValue, newText)
+                configValues[editingIndex] = newValue
+                
+                val newConfigMap = mutableMapOf<String, Any>()
+                for (idx in configKeys.indices) {
+                    newConfigMap[configKeys[idx]] = configValues[idx]
+                }
+                module.applyConfig(newConfigMap)
+                ConfigManager.save(module)
+                
+                playSound(SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.5f)
+            } catch (e: Exception) {
+                playSound(SoundEvents.ENTITY_VILLAGER_NO, 1.0f, 1.0f)
+            }
+        }
+        editingIndex = -1
+        editTextField = null
+    }
+    
+    override fun mouseScrolled(mouseX: Double, mouseY: Double, horizontalAmount: Double, verticalAmount: Double): Boolean {
+        if (verticalAmount < 0) {
+            scrollDown()
+        } else if (verticalAmount > 0) {
+            scrollUp()
+        }
+        return true
+    }
+    
     override fun keyPressed(keyCode: Int, scanCode: Int, modifiers: Int): Boolean {
+        if (editingIndex >= 0 && editTextField != null) {
+            if (keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) {
+                finishEditing()
+                return true
+            }
+            if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
+                editingIndex = -1
+                editTextField = null
+                return true
+            }
+            if (editTextField!!.keyPressed(keyCode, scanCode, modifiers)) {
+                return true
+            }
+        }
+        
         if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
             startClosing()
             return true
         }
         
-        if (keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) {
-            if (hasShiftDown()) {
-                saveConfig()
-            }
+        if (keyCode == GLFW.GLFW_KEY_UP) {
+            scrollUp()
             return true
         }
         
-        for (textField in textFields.values) {
-            if (textField.keyPressed(keyCode, scanCode, modifiers)) {
-                return true
-            }
+        if (keyCode == GLFW.GLFW_KEY_DOWN) {
+            scrollDown()
+            return true
         }
         
         return super.keyPressed(keyCode, scanCode, modifiers)
     }
     
     override fun charTyped(chr: Char, modifiers: Int): Boolean {
-        for (textField in textFields.values) {
-            if (textField.charTyped(chr, modifiers)) {
+        if (editingIndex >= 0 && editTextField != null) {
+            if (editTextField!!.charTyped(chr, modifiers)) {
                 return true
             }
         }
@@ -384,23 +486,7 @@ class ModuleConfigScreen(private val module: GameModule) : Screen(Text.translata
     
     private fun saveConfig() {
         try {
-            val newConfig = mutableMapOf<String, Any>()
-            
-            for ((key, textField) in textFields) {
-                val text = textField.text
-                val originalValue = config[key]
-                
-                when (originalValue) {
-                    is Boolean -> newConfig[key] = text.toBoolean()
-                    is Int -> newConfig[key] = text.toInt()
-                    is Float -> newConfig[key] = text.toFloat()
-                    is Double -> newConfig[key] = text.toDouble()
-                    is String -> newConfig[key] = text
-                    else -> newConfig[key] = text
-                }
-            }
-            
-            module.applyConfig(newConfig)
+            module.applyConfig(originalConfig)
             ConfigManager.save(module)
             
             playSound(SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.5f)
@@ -413,7 +499,7 @@ class ModuleConfigScreen(private val module: GameModule) : Screen(Text.translata
     }
     
     override fun close() {
-        client?.setScreen(null)
+        client?.setScreen(ModuleHudScreen())
     }
     
     private fun playSound(soundEvent: net.minecraft.sound.SoundEvent, volume: Float, pitch: Float) {

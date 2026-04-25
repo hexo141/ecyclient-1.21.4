@@ -19,6 +19,8 @@ object ECYclient : ModInitializer, PreLaunchEntrypoint {
 		ModuleManager.register(ExampleModule)
 		ModuleManager.register(com.example.module.movement.AutoSprint)
 		ModuleManager.register(com.example.module.player.AutoWaterPlace)
+		ModuleManager.register(com.example.module.combat.CriticalHit)
+		ModuleManager.register(com.example.module.combat.ExecutionAura)
 		
 		logger.info("ECYclient 系统初始化完成!")
 		logger.info("按 RSHIFT 键打开HUD界面")

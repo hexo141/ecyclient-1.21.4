@@ -35,6 +35,16 @@ object ConfigManager {
                 for ((key, value) in moduleConfig) {
                     when (value) {
                         is Boolean -> addProperty(key, value)
+                        is Int -> {
+                            // 检测是否为颜色值（包含alpha通道的大整数或负数）
+                            if (key.lowercase().contains("color") || value < 0 || value > 0xFFFFFF) {
+                                // 保存为无符号十六进制字符串
+                                val unsignedValue = value.toLong() and 0xFFFFFFFFL
+                                addProperty(key, String.format("#%08X", unsignedValue))
+                            } else {
+                                addProperty(key, value)
+                            }
+                        }
                         is Number -> addProperty(key, value)
                         is String -> addProperty(key, value)
                         else -> addProperty(key, value.toString())
@@ -79,7 +89,21 @@ object ConfigManager {
                             when {
                                 primitive.isBoolean -> primitive.asBoolean
                                 primitive.isNumber -> primitive.asNumber
-                                primitive.isString -> primitive.asString
+                                primitive.isString -> {
+                                    val strValue = primitive.asString
+                                    // 检测十六进制颜色代码
+                                    if (strValue.startsWith("#") && (strValue.length == 7 || strValue.length == 9)) {
+                                        try {
+                                            val hexValue = strValue.substring(1)
+                                            val longValue = java.lang.Long.parseLong(hexValue, 16)
+                                            longValue.toInt()
+                                        } catch (e: NumberFormatException) {
+                                            strValue
+                                        }
+                                    } else {
+                                        strValue
+                                    }
+                                }
                                 else -> primitive.asString
                             }
                         }

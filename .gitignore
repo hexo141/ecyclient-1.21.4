@@ -31,7 +31,7 @@ bin/
 # fabric
 
 run/
-
+.kotlin/
 # java
 
 hs_err_*.log
